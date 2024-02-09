@@ -92,27 +92,27 @@ def Dataset(file='data/ml_slashdot.csv', starting_line=1):
                        'label': 4,
                        'idx': 5
                        })
-    # 从文件下载数据
+    
     with open(file) as f:
         lines = f.read().splitlines()
     edges = [[float(r) for r in row.split(',')] for row in lines[starting_line:]]
     edges = torch.tensor(edges, dtype=torch.long)
 
-    new_edges = edges[:, [ecols.FromNodeId, ecols.ToNodeId]]  # 取出前两列
-    _, new_edges = new_edges.unique(return_inverse=True)  # 返回节点对应的id和从0开始计算id的新的序列编号
-    edges[:, [ecols.FromNodeId, ecols.ToNodeId]] = new_edges  # 替换原来序列中的节点id
+    new_edges = edges[:, [ecols.FromNodeId, ecols.ToNodeId]]  
+    _, new_edges = new_edges.unique(return_inverse=True)  
+    edges[:, [ecols.FromNodeId, ecols.ToNodeId]] = new_edges  
     timestamp = edges[:, [ecols.TimeStep]]
 
-    # 输出节点个数
+    
     num_nodes = edges[:, [ecols.FromNodeId, ecols.ToNodeId]].unique().size(0)
-    nodes_list = edges[:, [ecols.FromNodeId, ecols.ToNodeId]].unique()  # 输出节点列表
+    nodes_list = edges[:, [ecols.FromNodeId, ecols.ToNodeId]].unique()  
 
-    # 邻接表以及节点时间
-    node_time = [-1] * num_nodes  # 创建n个-1的列表用于存储每个节点出现的最早时间戳
+    
+    node_time = [-1] * num_nodes  
     for i, edg in enumerate(edges):
-        st = int(edg[ecols.FromNodeId])  # 边的起点
-        en = int(edg[ecols.ToNodeId])  # 边的终点
-        if node_time[st] == -1:  # 如果节点第一次出现，保存他的时间戳
+        st = int(edg[ecols.FromNodeId])  
+        en = int(edg[ecols.ToNodeId])  
+        if node_time[st] == -1:  
             node_time[st] = int(timestamp[i])
         if node_time[en] == -1:
             node_time[en] = int(timestamp[i])
@@ -125,7 +125,7 @@ def Dataset(file='data/ml_slashdot.csv', starting_line=1):
 
     edge = {'idx': idx, 'labels': labels}
 
-    #     #划分训练集，验证集，测试集
+    
     val_time, test_time = list(np.quantile(edge['idx'][:, 2], [0.10, 0.20]))
     #     print(val_time,test_time)
     valid_train_flag = (edge['idx'][:, 2] <= val_time)
@@ -142,11 +142,11 @@ def Dataset(file='data/ml_slashdot.csv', starting_line=1):
     val_label = edge['labels'][valid_val_flag]
     val_data = {'idx': val_edge, 'labels': val_label}
 
-    # 定义新的节点集
+    
     total_node_set = set(np.array(edge['idx'][:, 0])).union(np.array(edge['idx'][:, 1]))
     train_node_set = set(np.array(train_data['idx'][:, 0])).union(np.array(train_data['idx'][:, 1]))
     new_node_set = total_node_set - train_node_set
-    # 确保至少有一个点是没有出现在训练集中的
+    
     is_new_node_edge = np.array([(a in new_node_set or b in new_node_set) for a, b in
                                  zip(np.array(edge['idx'][:, 0]), np.array(edge['idx'][:, 1]))])
     #     print(is_new_node_edge)
@@ -188,7 +188,7 @@ class TimeEncode(torch.nn.Module):
         if self.time_encoding == "concat":
             x = self.fc1(torch.cat([u, harmonic], dim=-1))
         elif self.time_encoding == "sum":
-            x = u * 0.8 + harmonic * 0.2  # 做一个normalization,或加一个权重
+            x = u * 0.8 + harmonic * 0.2  
         return x
 
 def get_edges(s_idx,e_idx,edge):
