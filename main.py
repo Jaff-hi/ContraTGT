@@ -39,8 +39,8 @@ dropout = args.drop_out
 N = 2
 n_epoch = args.n_epoch
 BATCH_SIZE = args.bs
-num_instance = len(train_data['idx'])#训练集总的行数
-num_batch = math.ceil(num_instance / BATCH_SIZE)#向上取整，batch的个数
+num_instance = len(train_data['idx'])
+num_batch = math.ceil(num_instance / BATCH_SIZE)
 ctx_sample = args.ctx_sample
 tmp_sample = args.tmp_sample
 pretrain_path = f'pretrain_model/{data_name}.pth'
@@ -68,7 +68,7 @@ def eval_epoch(data, batch_size, model, ctx_sample, tmp_sample, rand_sampler):
         for k in range(num_batch):
             s_idx = k * batch_size
             e_idx = min(num_instance - 1, s_idx + batch_size)
-            batch_data = get_edges(s_idx, e_idx, data)  #######train_data改回data
+            batch_data = get_edges(s_idx, e_idx, data)  
             #             batch_rand_sampler = RandEdgeSampler(batch_data['idx'][:,1])
             node_sum = len(batch_data['idx'])
 
@@ -83,7 +83,7 @@ def eval_epoch(data, batch_size, model, ctx_sample, tmp_sample, rand_sampler):
                                                                                 batch_data['idx'][:, 2],
                                                                                 num_sample=ctx_sample)
 
-            con_seq_fea = np.empty((node_sum, ctx_sample, indim))  # 节点数，采样数+1，特征维度
+            con_seq_fea = np.empty((node_sum, ctx_sample, indim))  
             con_to_fea = np.empty((node_sum, ctx_sample, indim))
             for idx, i in enumerate(batch_ngh_node):
                 for idj, j in enumerate(i):
@@ -92,48 +92,48 @@ def eval_epoch(data, batch_size, model, ctx_sample, tmp_sample, rand_sampler):
                 for idj, j in enumerate(i):
                     con_to_fea[idx, idj, :] = features[j]
 
-            # 源节点spatial seq序列特征矩阵及mask矩阵
+            # target node spatial sequence metric
             con_seq_fea = torch.FloatTensor(np.array(con_seq_fea))
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(batch_ngh_ts)
-            con_seq_fea = time_information(con_seq_fea, ts)  ########
+            con_seq_fea = time_information(con_seq_fea, ts)  
             context_feature = time_encode(con_seq_fea, torch.tensor(batch_ngh_ts)).to(device)
             batch_ngh_mask = torch.LongTensor(np.array(batch_ngh_mask)).to(device)
 
-            # 目标节点spatial seq的特征矩阵及mask矩阵
+            # dest node spatial sequence metric
             con_to_fea = torch.FloatTensor(np.array(con_to_fea))
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(to_ngh_ts)
-            con_to_fea = time_information(con_to_fea, ts)  #########
+            con_to_fea = time_information(con_to_fea, ts)  
             to_con_feature = time_encode(con_to_fea, torch.tensor(to_ngh_ts)).to(device)
             to_ngh_mask = torch.LongTensor(np.array(to_ngh_mask)).to(device)
 
             # ---------------------temporal layer----------------------
             batch_node_seq, batch_node_seq_mask, batch_ts = get_unique_node_sequence(batch_data, edges, tmp_sample,
                                                                                      interaction_list, flag=True)
-            temp_seq_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            temp_seq_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(batch_node_seq):
                 for idj, j in enumerate(i):
                     temp_seq_fea[idx, idj, :] = features[j]
-            # 源节点temporal seq序列特征矩阵及mask矩阵
+            # target node temporal sequence metric
             temp_seq_fea = torch.FloatTensor(np.array(temp_seq_fea))
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(batch_ts)
             temp_seq_fea = time_information(temp_seq_fea, ts)  #########
             temporal_feature = time_encode(temp_seq_fea, torch.tensor(batch_ts)).to(device)
             batch_node_seq_mask = torch.LongTensor(np.array(batch_node_seq_mask)).to(device)
 
-            # 目标节点temporal seq的特征矩阵及mask矩阵
+            # dest node temporal sequence metric
             to_node_seq, to_node_seq_mask, to_ts = get_unique_node_sequence(batch_data, edges, tmp_sample,
                                                                             interaction_list, flag=False)
-            to_seq_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            to_seq_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(to_node_seq):
                 for idj, j in enumerate(i):
                     to_seq_fea[idx, idj, :] = features[j]
             to_seq_fea = torch.FloatTensor(to_seq_fea)
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(to_ts)
-            to_seq_fea = time_information(to_seq_fea, ts)  ##########
+            to_seq_fea = time_information(to_seq_fea, ts)  
             to_seq_feature = time_encode(to_seq_fea, torch.tensor(to_ts)).to(device)
             to_node_seq_mask = torch.LongTensor(np.array(to_node_seq_mask)).to(device)
 
-            # fake节点的spatial和temporal序列、特征矩阵
+            # fake node spatial and temporal sequence metric
             fake_node = rand_sampler.sample(node_sum)
             fake_con_node, fake_con_ts, fake_con_idx, fake_con_mask = get_neighbor_list(node_l, ts_l, idx_l, offset_l,
                                                                                         fake_node,
@@ -153,7 +153,7 @@ def eval_epoch(data, batch_size, model, ctx_sample, tmp_sample, rand_sampler):
             fake_batch_data['idx'][:, 1] = torch.tensor(fake_node)
             fake_tmp_seq, fake_tmp_mask, fake_tmp_ts = get_unique_node_sequence(fake_batch_data, edges, tmp_sample,
                                                                                 interaction_list, flag=False)
-            fake_tmp_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            fake_tmp_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(fake_tmp_seq):
                 for idj, j in enumerate(i):
                     fake_tmp_fea[idx, idj, :] = features[j]
@@ -213,7 +213,7 @@ for m in range(1):
                                                                                 batch_data['idx'][:, 2],
                                                                                 num_sample=ctx_sample)
 
-            con_seq_fea = np.empty((node_sum, ctx_sample, indim))  # 节点数，采样数+1，特征维度
+            con_seq_fea = np.empty((node_sum, ctx_sample, indim))  
             con_to_fea = np.empty((node_sum, ctx_sample, indim))
 
             for idx, i in enumerate(batch_ngh_node):
@@ -223,14 +223,14 @@ for m in range(1):
                 for idj, j in enumerate(i):
                     con_to_fea[idx, idj, :] = features[j]
 
-            # 源节点spatial seq序列特征矩阵及mask矩阵
+            
             con_seq_fea = torch.FloatTensor(np.array(con_seq_fea))
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(batch_ngh_ts)
             con_seq_fea = time_information(con_seq_fea, ts)  ########
             context_feature = time_encode(con_seq_fea, torch.tensor(batch_ngh_ts)).to(device)
             batch_ngh_mask = torch.LongTensor(np.array(batch_ngh_mask)).to(device)
 
-            # 目标节点spatial seq的特征矩阵及mask矩阵
+            
             con_to_fea = torch.FloatTensor(np.array(con_to_fea))
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(to_ngh_ts)
             con_to_fea = time_information(con_to_fea, ts)  #########
@@ -240,21 +240,21 @@ for m in range(1):
             #################temporal layer###################
             batch_node_seq, batch_node_seq_mask, batch_ts = get_unique_node_sequence(batch_data, edges, tmp_sample,
                                                                                      interaction_list, flag=True)
-            temp_seq_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            temp_seq_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(batch_node_seq):
                 for idj, j in enumerate(i):
                     temp_seq_fea[idx, idj, :] = features[j]
-            # 源节点temporal seq序列特征矩阵及mask矩阵
+            
             temp_seq_fea = torch.FloatTensor(np.array(temp_seq_fea))
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(batch_ts)
-            temp_seq_fea = time_information(temp_seq_fea, ts)  #########
+            temp_seq_fea = time_information(temp_seq_fea, ts)  
             temporal_feature = time_encode(temp_seq_fea, torch.tensor(batch_ts)).to(device)
             batch_node_seq_mask = torch.LongTensor(np.array(batch_node_seq_mask)).to(device)
 
-            # 目标节点temporal seq的特征矩阵及mask矩阵
+            
             to_node_seq, to_node_seq_mask, to_ts = get_unique_node_sequence(batch_data, edges, tmp_sample,
                                                                             interaction_list, flag=False)
-            to_seq_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            to_seq_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(to_node_seq):
                 for idj, j in enumerate(i):
                     to_seq_fea[idx, idj, :] = features[j]
@@ -264,7 +264,7 @@ for m in range(1):
             to_seq_feature = time_encode(to_seq_fea, torch.tensor(to_ts)).to(device)
             to_node_seq_mask = torch.LongTensor(np.array(to_node_seq_mask)).to(device)
 
-            ############fake节点的spatial和temporal序列、特征矩阵##############
+            ############fake node spatial和temporalseq metric##############
             fake_node = train_rand_sampler.sample(node_sum)
             fake_con_node, fake_con_ts, fake_con_idx, fake_con_mask = get_neighbor_list(node_l, ts_l, idx_l, offset_l,
                                                                                         fake_node,
@@ -284,7 +284,7 @@ for m in range(1):
             fake_batch_data['idx'][:, 1] = torch.tensor(fake_node)
             fake_tmp_seq, fake_tmp_mask, fake_tmp_ts = get_unique_node_sequence(fake_batch_data, edges, tmp_sample,
                                                                                 interaction_list, flag=False)
-            fake_tmp_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            fake_tmp_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(fake_tmp_seq):
                 for idj, j in enumerate(i):
                     fake_tmp_fea[idx, idj, :] = features[j]
