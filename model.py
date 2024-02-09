@@ -47,7 +47,7 @@ class SpatialTemporal(nn.Module):
         temporal_output_2 = torch.mean(temporal_output[:, 1:, :], dim=1)
         output = torch.cat([spatial_output_1, spatial_output_2, temporal_output_1, temporal_output_2], dim=1)
         output = self.mlp(output)
-        # 加一个normalization的embedding
+        
         output = self.embed_norm(output)
         return output
 
@@ -85,7 +85,7 @@ class Top_k(nn.Module):
         self.ones = torch.nn.Parameter(torch.ones(1, in_dim).float(), requires_grad=False)
 
     def forward(self, feature, m, tk, embed):
-        attn = self.get_attention(embed, m)  # 根据embed生成节点间attn
+        attn = self.get_attention(embed, m)  
         mask = attn
         y = torch.zeros_like(mask)
         k = tk
@@ -102,7 +102,7 @@ class Top_k(nn.Module):
             logw = torch.log(w + 1e-12)
             y1 = (mask + logw)
 
-            y1 = y1 - torch.amax(y1, dim=1, keepdim=True)  # torch.amax输出维度里最大的那一个
+            y1 = y1 - torch.amax(y1, dim=1, keepdim=True)  
             y1 = y1 / (w * 1e-06 + (1 - w) * 1e-02)
 
             y1 = torch.exp(y1) / (torch.sum(torch.exp(y1), dim=1, keepdim=True) + 1e-12)
@@ -110,13 +110,13 @@ class Top_k(nn.Module):
             y = y + y1 * w
 
         mask = y.unsqueeze(dim=-1)
-        mask = torch.matmul(mask, self.ones)  # 将y矩阵拓展为feature大小
+        mask = torch.matmul(mask, self.ones)  
 
         feature = feature * mask
 
         y = torch.where(y < 0.1, zero, y)
 
-        return feature, y  # 都保留0.4，不需要替换
+        return feature, y  
 
     def get_attention(self, feature, mask):
         #         mask = torch.tensor(mask)
