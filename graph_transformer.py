@@ -4,24 +4,24 @@ import math
 import torch.nn.functional as F
 
 class MultHeadAttention(nn.Module):
-    def __init__(self, in_dim, out_dim, n_heads, bias=True, dropout=0.1):  # 输入维度，输出维度，head数目
+    def __init__(self, in_dim, out_dim, n_heads, bias=True, dropout=0.1):  
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim  ##################################################################################
         self.n_heads = n_heads
-        self.head_dim = self.out_dim // n_heads  # 每一个head的维度为输入维度除以head数目,#####这里是outdim，不然下面重组四维数组除不开
+        self.head_dim = self.out_dim // n_heads  
         assert (
-                self.head_dim * n_heads == self.out_dim  # 却把可以整除
+                self.head_dim * n_heads == self.out_dim  
         )
-        self.scaling = self.head_dim ** -0.5  ########################################这句不是很清楚有什么作用
-        # 构造四个全连接层，分别用于计算向量q,k,v和最后的输出
+        self.scaling = self.head_dim ** -0.5  
+        
         self.Q_linear = nn.Linear(self.in_dim, self.out_dim, bias=bias)
         self.K_linear = nn.Linear(self.in_dim, self.out_dim, bias=bias)
         self.V_linear = nn.Linear(self.in_dim, self.out_dim, bias=bias)
         self.out_linear = nn.Linear(self.out_dim, self.out_dim, bias=bias)
         self.reset_parameters()
 
-    # 均匀分布初始化参数矩阵。根据经验观察，缩放初始化的收敛性要好得多
+    
     def reset_parameters(self):
 
         nn.init.xavier_uniform_(self.K_linear.weight, gain=1 / math.sqrt(2))
@@ -33,19 +33,19 @@ class MultHeadAttention(nn.Module):
             nn.init.constant_(self.out_linear.bias, 0.0)
 
     def forward(self, query, key, value, mask=None):
-        tgt_len, bsz, embed_dim = query.size()  # 节点数，序列长度，特征维度
+        tgt_len, bsz, embed_dim = query.size()  
         src_len = tgt_len
-        # 计算向量Q,K,V
+        
         Q = self.Q_linear(query)
         K = self.K_linear(key)
         V = self.V_linear(value)
         Q *= self.scaling
-        # 将Q,K,V矩阵根据head数目进行划分
+        
         Q = (Q.contiguous().view(tgt_len, -1, self.n_heads, self.head_dim).transpose(1, 2))
         K = (K.contiguous().view(tgt_len, -1, self.n_heads, self.head_dim).transpose(1, 2))
         V = (V.contiguous().view(tgt_len, -1, self.n_heads, self.head_dim).transpose(1, 2))
 
-        # 计算序列中两两节点之间的权重
+        
         scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.head_dim)
 
         if mask is not None:
@@ -54,12 +54,12 @@ class MultHeadAttention(nn.Module):
 
         attn = F.softmax(scores, dim=-1)
 
-        # 计算加权求和
+        
         out = torch.matmul(attn, V)
-        # 将各个head的矩阵重新组合为一个矩阵
+        
         out = out.transpose(1, 2).contiguous().view(tgt_len, -1, self.n_heads * self.head_dim)
         #         print('out1:',out.shape)
-        # 经过一个线性层得到最终输出矩阵
+        
         out = self.out_linear(out)
         return out
 class LayerNorm(nn.Module):
