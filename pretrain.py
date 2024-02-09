@@ -39,8 +39,8 @@ dropout = args.drop_out
 N = 2
 n_epoch = args.n_epoch
 BATCH_SIZE = args.bs
-num_instance = len(train_data['idx'])#训练集总的行数
-num_batch = math.ceil(num_instance / BATCH_SIZE)#向上取整，batch的个数
+num_instance = len(train_data['idx'])
+num_batch = math.ceil(num_instance / BATCH_SIZE)
 ctx_sample=30
 tmp_sample =21
 pretrain_path = f'pretrain_model/{data_name}.pth'
@@ -80,11 +80,11 @@ for epoch in tqdm(range(n_epoch)):
         ###################################train for top_k#####################################
         model = model.eval()
         top_k = top_k.train()
-        # top_k训练多少次
+        # top_k train
         mid_model.load_state_dict(torch.load(MIDDLE_PATH))
         for se in range(6):
             # spatial layer
-            # 目标节点
+            
             spa_src_node, spa_src_ts, spa_src_idx, spa_src_mask = get_neighbor_list(node_l, ts_l, idx_l, offset_l,
                                                                                     batch_data['idx'][:, 0],
                                                                                     batch_data['idx'][:, 2],
@@ -93,13 +93,13 @@ for epoch in tqdm(range(n_epoch)):
             for idx, i in enumerate(spa_src_node):
                 for idj, j in enumerate(i):
                     spa_src_fea[idx, idj, :] = features[j]
-            spa_src_fea = torch.FloatTensor(spa_src_fea)  # 未添加时间戳编码的特征矩阵
+            spa_src_fea = torch.FloatTensor(spa_src_fea)  
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(spa_src_ts)
             spa_src_feature = time_information(spa_src_fea, ts)
             spa_src_feature = time_encode(spa_src_feature, torch.tensor(spa_src_ts)).to(device)
             spa_src_mask = torch.LongTensor(spa_src_mask).to(device)
 
-            # 目的节点
+            # target node
             spa_dst_node, spa_dst_ts, spa_dst_idx, spa_dst_mask = get_neighbor_list(node_l, ts_l, idx_l, offset_l,
                                                                                     batch_data['idx'][:, 1],
                                                                                     batch_data['idx'][:, 2],
@@ -108,19 +108,19 @@ for epoch in tqdm(range(n_epoch)):
             for idx, i in enumerate(spa_dst_node):
                 for idj, j in enumerate(i):
                     spa_dst_fea[idx, idj, :] = features[j]
-            spa_dst_fea = torch.FloatTensor(np.array(spa_dst_fea))  ##未添加时间戳编码的特征矩阵
+            spa_dst_fea = torch.FloatTensor(np.array(spa_dst_fea))  
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(spa_dst_ts)
             spa_dst_feature = time_information(spa_dst_fea, ts)
             spa_dst_feature = time_encode(spa_dst_feature, torch.tensor(spa_dst_ts)).to(device)
             spa_dst_mask = torch.LongTensor(np.array(spa_dst_mask)).to(device)
 
-            # 节点加强--从2l中随机抽取l个
+            
             spa_node_1, spa_ts_1, spa_idx_1, spa_mask_1 = get_neighbor_list(node_l, ts_l, idx_l, offset_l,
                                                                             batch_data['idx'][:, 0],
                                                                             batch_data['idx'][:, 2],
                                                                             num_sample=ctx_sample * 2)
 
-            spa_fea_1 = np.empty((node_sum, ctx_sample * 2, indim))  # 节点数，采样数+1，特征维度
+            spa_fea_1 = np.empty((node_sum, ctx_sample * 2, indim))  
             for idx, i in enumerate(spa_node_1):
                 for idj, j in enumerate(i):
                     spa_fea_1[idx, idj, :] = features[j]
@@ -128,14 +128,14 @@ for epoch in tqdm(range(n_epoch)):
 
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(spa_ts_1)
             spa_fea_1 = time_information(spa_fea_1, ts)  ########
-            spa_fea_1 = time_encode(spa_fea_1, torch.tensor(spa_ts_1)).to(device)  # 2l长度的序列特征和mask矩阵
+            spa_fea_1 = time_encode(spa_fea_1, torch.tensor(spa_ts_1)).to(device)  
             spa_mask_1 = torch.LongTensor(spa_mask_1).to(device)
 
             # temporal layer
-            # 目标节点
+            
             tmp_src_node, tmp_src_mask, tmp_src_ts = get_unique_node_sequence(batch_data, edges, tmp_sample,
                                                                               interaction_list, flag=True)
-            tmp_src_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            tmp_src_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(tmp_src_node):
                 for idj, j in enumerate(i):
                     tmp_src_fea[idx, idj, :] = features[j]
@@ -145,10 +145,10 @@ for epoch in tqdm(range(n_epoch)):
             tmp_src_feature = time_encode(tmp_src_fea, torch.tensor(tmp_src_ts)).to(device)
             tmp_src_mask = torch.LongTensor(tmp_src_mask).to(device)
 
-            # 目的节点
+            
             tmp_dst_node, tmp_dst_mask, tmp_dst_ts = get_unique_node_sequence(batch_data, edges, tmp_sample,
                                                                               interaction_list, flag=False)
-            tmp_dst_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            tmp_dst_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(tmp_dst_node):
                 for idj, j in enumerate(i):
                     tmp_dst_fea[idx, idj, :] = features[j]
@@ -158,21 +158,21 @@ for epoch in tqdm(range(n_epoch)):
             tmp_dst_feature = time_encode(tmp_dst_feature, torch.tensor(tmp_dst_ts)).to(device)
             tmp_dst_mask = torch.LongTensor(np.array(tmp_dst_mask)).to(device)
 
-            # 从2l中抽取l个
+            
             tmp_node_1, tmp_mask_1, tmp_ts_1 = get_unique_node_sequence(batch_data, edges, (tmp_sample - 1) * 2 + 1,
                                                                         interaction_list, flag=True)
 
-            tmp_fea_1 = np.empty((node_sum, (tmp_sample - 1) * 2 + 1, indim))  # 节点数，采样数+1，特征维度
+            tmp_fea_1 = np.empty((node_sum, (tmp_sample - 1) * 2 + 1, indim))  
             for idx, i in enumerate(tmp_node_1):
                 for idj, j in enumerate(i):
                     tmp_fea_1[idx, idj, :] = features[j]
             tmp_fea_1 = torch.FloatTensor(np.array(tmp_fea_1))
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(tmp_ts_1)
             tmp_fea_1 = time_information(tmp_fea_1, ts)  ########
-            tmp_fea_1 = time_encode(tmp_fea_1, torch.tensor(tmp_ts_1)).to(device)  # 2l长度的序列特征和mask矩阵
+            tmp_fea_1 = time_encode(tmp_fea_1, torch.tensor(tmp_ts_1)).to(device)  
             tmp_mask_1 = torch.tensor(tmp_mask_1).to(device)
 
-            # fake节点的spatial和temporal序列、特征矩阵
+            
             fake_node = train_rand_sampler.sample(node_sum)
             fake_ctx_node, fake_ctx_ts, fake_ctx_idx, fake_ctx_mask = get_neighbor_list(node_l, ts_l, idx_l, offset_l,
                                                                                         fake_node,
@@ -192,7 +192,7 @@ for epoch in tqdm(range(n_epoch)):
             fake_batch_data['idx'][:, 1] = torch.tensor(fake_node)
             fake_tmp_seq, fake_tmp_mask, fake_tmp_ts = get_unique_node_sequence(fake_batch_data, edges, tmp_sample,
                                                                                 interaction_list, flag=False)
-            fake_tmp_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            fake_tmp_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(fake_tmp_seq):
                 for idj, j in enumerate(i):
                     fake_tmp_fea[idx, idj, :] = features[j]
@@ -214,12 +214,12 @@ for epoch in tqdm(range(n_epoch)):
                 pos_label = (pos > 0.5).float()
                 neg_label = (neg > 0.5).float()
 
-            # 获取spatial序列的embed
+            
             spa_feature_1, spa_mask_1 = top_k(spa_fea_1, spa_mask_1, spasample, spatial_embed)
             spa_mask_1 = spa_mask_1.to(device)
             spa_feature_1 = spa_feature_1.to(device)
 
-            # 获取temporal序列的embed
+            
             tmp_feature_1, tmp_mask_1 = top_k(tmp_fea_1, tmp_mask_1, tmpsample, temporal_embed)
             tmp_mask_1 = tmp_mask_1.to(device)
             tmp_feature_1 = tmp_feature_1.to(device)
@@ -231,8 +231,8 @@ for epoch in tqdm(range(n_epoch)):
             pos_prob, neg_prob = mid_model.linkPredict(spa_fea_1, spa_mask_1, tmp_src_feature, tmp_src_mask,
                                                        spa_dst_feature, spa_dst_mask, tmp_dst_feature, tmp_dst_mask,
                                                        fake_ctx_fea, fake_ctx_mask, fake_tmp_fea, fake_tmp_mask)
-            con_loss = criterion(pos_prob, pos_label) + criterion(neg_prob, neg_label)  # 只要能表达行为，不一定越大越好
-            # 用准确率表示一下argmax，只算pos的就行
+            con_loss = criterion(pos_prob, pos_label) + criterion(neg_prob, neg_label)  
+            
             # diversity
             div_1 = mid_model.getEmbed(spa_feature_1, tmp_feature_1, spa_mask_1, tmp_mask_1)
             div_2 = mid_model.getEmbed(spa_src_feature, tmp_src_feature, spa_src_mask, tmp_src_mask)
@@ -249,13 +249,13 @@ for epoch in tqdm(range(n_epoch)):
         model.train()
         top_k.eval()
         for se in range(3):
-            #####节点加强--从2l中随机抽取l个#####
+            
             # spatial view
             spa_node, spa_ts, spa_idx, spa_mask = get_neighbor_list(node_l, ts_l, idx_l, offset_l,
                                                                     batch_data['idx'][:, 0], batch_data['idx'][:, 2],
                                                                     num_sample=ctx_sample * 2)
 
-            spa_fea = np.empty((node_sum, ctx_sample * 2, indim))  # 节点数，采样数+1，特征维度
+            spa_fea = np.empty((node_sum, ctx_sample * 2, indim))  
             for idx, i in enumerate(spa_node):
                 for idj, j in enumerate(i):
                     spa_fea[idx, idj, :] = features[j]
@@ -275,7 +275,7 @@ for epoch in tqdm(range(n_epoch)):
             tmp_node, tmp_mask, tmp_ts = get_unique_node_sequence(batch_data, edges, (tmp_sample - 1) * 2 + 1,
                                                                   interaction_list, flag=True)
 
-            tmp_fea = np.empty((node_sum, (tmp_sample - 1) * 2 + 1, indim))  # 节点数，采样数+1，特征维度
+            tmp_fea = np.empty((node_sum, (tmp_sample - 1) * 2 + 1, indim))  
             for idx, i in enumerate(tmp_node):
                 for idj, j in enumerate(i):
                     tmp_fea[idx, idj, :] = features[j]
@@ -291,7 +291,7 @@ for epoch in tqdm(range(n_epoch)):
             tmp_mask = tmp_mask.to(device)
             tmp_feature = tmp_feature.to(device)
 
-            #####常规src节点#####
+            
             # spatial view
             con_src_node, con_src_ts, con_src_idx, con_src_mask = get_neighbor_list(node_l, ts_l, idx_l, offset_l,
                                                                                     batch_data['idx'][:, 0],
@@ -309,11 +309,11 @@ for epoch in tqdm(range(n_epoch)):
             # temporal view
             temp_src_node, temp_src_mask, temp_src_ts = get_unique_node_sequence(batch_data, edges, tmp_sample,
                                                                                  interaction_list, flag=True)
-            temp_src_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            temp_src_fea = np.empty((node_sum, tmp_sample, indim))  
             for idx, i in enumerate(temp_src_node):
                 for idj, j in enumerate(i):
                     temp_src_fea[idx, idj, :] = features[j]
-            temp_src_fea = torch.FloatTensor(temp_src_fea)  # .to(device)#未添加时间戳编码的特征矩阵
+            temp_src_fea = torch.FloatTensor(temp_src_fea)  # .to(device)
             ts = batch_data['idx'][:, 2].unsqueeze(dim=-1) - torch.tensor(temp_src_ts)
             temp_src_feature = time_information(temp_src_fea, ts)  ##########
             temp_src_feature = time_encode(temp_src_fea, torch.tensor(temp_src_ts)).to(device)
@@ -339,7 +339,7 @@ for epoch in tqdm(range(n_epoch)):
             fake_batch_data['idx'][:, 1] = torch.tensor(fake_node)
             fake_temp_seq, fake_temp_mask, fake_temp_ts = get_unique_node_sequence(fake_batch_data, edges, tmp_sample,
                                                                                    interaction_list, flag=False)
-            fake_temp_fea = np.empty((node_sum, tmp_sample, indim))  # 节点数，采样数+1，特征维度
+            fake_temp_fea = np.empty((node_sum, tmp_sample, indim)) 
             for idx, i in enumerate(fake_temp_seq):
                 for idj, j in enumerate(i):
                     fake_temp_fea[idx, idj, :] = features[j]
@@ -361,7 +361,7 @@ for epoch in tqdm(range(n_epoch)):
                 target_2 = torch.zeros(node_sum, dtype=torch.float, device=device) - 1
 
             pos_loss = cos_loss(embed_1, embed_2.detach(), target_1)
-            neg_loss = cos_loss(embed_1, embed_fake.detach(), target_2)  # 2l里选l
+            neg_loss = cos_loss(embed_1, embed_fake.detach(), target_2)  
             loss = pos_loss + neg_loss
             loss.backward()
             optimizer.step()
